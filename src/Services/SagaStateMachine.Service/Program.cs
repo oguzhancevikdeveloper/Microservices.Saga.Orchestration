@@ -1,25 +1,30 @@
-var builder = WebApplication.CreateBuilder(args);
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using SagaOrche.Shared.Settings;
+using SagaStateMachine.Service.StateDbContexts;
+using SagaStateMachine.Service.StateInstances;
+using SagaStateMachine.Service.StateMachines;
 
-// Add services to the container.
+var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+builder.Services.AddMassTransit(configurator =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    configurator.AddSagaStateMachine<OrderStateMachine, OrderStateInstance>()
+    .EntityFrameworkRepository(options =>
+    {
+        options.AddDbContext<DbContext, OrderStateDbContext>((provider, _builder) =>
+        {
+            _builder.UseSqlServer(builder.Configuration.GetConnectionString("MSSQLServer"));
+        });
+    });
 
-app.UseHttpsRedirection();
+    configurator.UsingRabbitMq((context, _configure) =>
+    {
+        _configure.Host(builder.Configuration["RabbitMQ"]);
 
-app.UseAuthorization();
+        _configure.ReceiveEndpoint(RabbitMQSettings.StateMachineQueue, e => e.ConfigureSaga<OrderStateInstance>(context));
+    });
+});
 
-app.MapControllers();
-
-app.Run();
+var host = builder.Build();
+host.Run();

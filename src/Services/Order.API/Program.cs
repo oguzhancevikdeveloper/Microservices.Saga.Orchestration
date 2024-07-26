@@ -2,13 +2,14 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Order.API.Consumers;
 using Order.API.Context;
-using Order.API.DTOs;
 using SagaOrche.Shared.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddControllers();
 
 builder.Services.AddMassTransit(configurator =>
 {
@@ -32,4 +33,6 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseRouting();
+app.MapControllers();
 app.Run();
